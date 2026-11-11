@@ -68,20 +68,28 @@ class BookingApiIT {
 
     @ParameterizedTest
     @CsvSource({
-            "IT-OPEN,   C-01, 6, 400, INVALID_INPUT",
-            "NONE,      C-01, 1, 404, WORKSHOP_NOT_FOUND",
-            "IT-CLOSED, C-01, 1, 409, WORKSHOP_CLOSED",
-            "IT-OPEN,   C-02, 1, 422, MEMBER_INELIGIBLE"
+            "IT-OPEN,   C-01, 6, ana@example.com,     400, INVALID_INPUT",
+            "IT-OPEN,   C-01, 1, ' ana@example.com ', 400, INVALID_INPUT",
+            "NONE,      C-01, 1, ana@example.com,     404, WORKSHOP_NOT_FOUND",
+            "IT-CLOSED, C-01, 1, ana@example.com,     409, WORKSHOP_CLOSED",
+            "IT-OPEN,   C-02, 1, ana@example.com,     422, MEMBER_INELIGIBLE"
     })
-    void rejectsAndSavesNothing(String workshop, String member, int tickets, int status, String code) throws Exception {
+    void rejectsAndSavesNothing(String workshop, String member, int tickets, String email, int status, String code) throws Exception {
         mvc.perform(post("/registrations").contentType("application/json").content("""
                 {"reference":"REG-01","workshopCode":"%s","attendee":"Ana",
-                 "email":"ana@example.com","memberId":"%s","tickets":%d}
-                """.formatted(workshop, member, tickets)))
+                 "email":"%s","memberId":"%s","tickets":%d}
+                """.formatted(workshop, email, member, tickets)))
                 .andExpect(status().is(status))
                 .andExpect(jsonPath("$.code").value(code));
 
         assertTrue(registrationRepository.findByReference("REG-01").isEmpty());
+    }
+
+    @Test
+    void malformedJsonIsInvalidInput() throws Exception {
+        mvc.perform(post("/registrations").contentType("application/json").content("broken json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
     @Test
